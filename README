@@ -14,6 +14,7 @@ Progress:
 	fork/exec/waitpid:
 	-r(reverse, for /etc/rc.shutdown):
 	self modification:
+	update document:
 
 Concept:
 	beg/end: the proper timing to launch script / wait it finished

@@ -967,50 +967,47 @@ generate_ordering(void)
 	qsort(beg, num, sizeof(filenode *), cmp_beg);
 	qsort(end, num, sizeof(filenode *), cmp_end);
 
-	int curr_beg;
-	int curr_end;
+	int t=0;
 	i=0;
 	j=0;
 	while(i<num || j<num){
-		if (i<num) {
-			curr_beg=beg[i]->beg;
-			while(i<num && beg[i]->beg==curr_beg){
-				/* if we were already in progress, don't print again */
-				if (skip_ok(beg[i]) && keep_ok(beg[i])) {
-					eargv[0]=beg[i]->filename;
-					if (execute) {
-						beg[i]->pid=fork();
-						if(beg[i]->pid==0){
-							exit_code=-execvp(eargv[0], eargv);
-							return;
-						}
-						if(beg[i]->pid<0){
-							exit_code=1;
-							return;
-						}
-					} else {
-						printf("%d\tbeg\t", curr_beg);
-						for(v=0;v<eargc;++v)
-							printf("%s ", eargv[v]);
-						printf("\n");
+		if(i<num)
+			t=beg[i]->beg;
+		if(j<num && t>end[j]->end)
+			t=end[j]->end;
+		while(i<num && beg[i]->beg==t){
+			/* if we were already in progress, don't print again */
+			if (skip_ok(beg[i]) && keep_ok(beg[i])) {
+				eargv[0]=beg[i]->filename;
+				if (execute) {
+					beg[i]->pid=fork();
+					if(beg[i]->pid==0){
+						exit_code=-execvp(eargv[0], eargv);
+						return;
 					}
+					if(beg[i]->pid<0){
+						exit_code=1;
+						return;
+					}
+				} else {
+					printf("%d\tbeg\t", t);
+					for(v=0;v<eargc;++v)
+						printf("%s ", eargv[v]);
+					printf("\n");
 				}
-				i+=1;
 			}
+			i+=1;
 		}
-		if (j<num) {
-			curr_end=end[j]->end;
-			while(j<num && end[j]->end==curr_end){
-				/* if we were already in progress, don't print again */
-				if (skip_ok(end[j]) && keep_ok(end[j])) {
-					if (execute) {
-						waitpid(end[j]->pid, NULL, 0);
-					} else {
-						printf("%d\tend\t%s\n", curr_end, end[j]->filename);
-					}
+		while(j<num && end[j]->end==t){
+			/* if we were already in progress, don't print again */
+			if (skip_ok(end[j]) && keep_ok(end[j])) {
+				if (execute) {
+					waitpid(end[j]->pid, NULL, 0);
+				} else {
+					printf("%d\tend\t%s\n", t, end[j]->filename);
 				}
-				j+=1;
 			}
+			j+=1;
 		}
 	}
 }

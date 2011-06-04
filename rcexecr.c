@@ -217,6 +217,7 @@ main(int argc, char *argv[])
 	file_list = argv;
 
 	if((arg=getenv("rcexecr"))!=NULL){
+		//ignoring all arguments
 		ch=strtol(arg, NULL, 10);
 		write(ch, "?", 1);
 		while(file_count){

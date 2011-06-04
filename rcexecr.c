@@ -851,7 +851,6 @@ do_file(filenode *fnode, int t)
 		r = r->next;
 	}
 	fnode->in_progress = REQ;
-	fnode->req_list = NULL;
 
 	/* do_it(fnode) */
 	DPRINTF((stderr, "next do: "));

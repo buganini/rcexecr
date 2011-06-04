@@ -974,7 +974,7 @@ generate_ordering(void)
 				} else {
 					printf("%d\tbeg\t", t);
 					for(v=0;v<eargc;++v)
-						printf("%s git", eargv[v]);
+						printf("%s ", eargv[v]);
 					printf("\n");
 				}
 			}

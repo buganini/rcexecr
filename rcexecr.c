@@ -668,11 +668,6 @@ pre_satisfy_req(f_reqnode *rnode, char *filename)
 			max = v;
 		node = node->next;
 	}
-	node = head->next;
-	while (node != NULL) {
-		do_file(node->fnode, max);
-		node = node->next;
-	}
 
 	head->beg = max + 1;
 	head->in_progress = SET;
@@ -794,6 +789,11 @@ pre_do_file(filenode *fnode)
 		v=pre_satisfy_req(r, fnode->filename);
 		if (max < v)
 			max = v;
+		r = r->next;
+	}
+	r = fnode->req_list;
+	while (r != NULL) {
+		satisfy_req(r, fnode->filename, max);
 		r = r->next;
 	}
 

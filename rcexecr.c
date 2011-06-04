@@ -80,9 +80,11 @@ char **file_list;
 typedef int bool;
 #define TRUE 1
 #define FALSE 0
-typedef bool flag;
-#define SET TRUE
-#define RESET FALSE
+typedef int flag;
+#define RST 0
+#define PRE 1
+#define SET 2
+#define REQ 3
 
 Hash_Table provide_hash_s, *provide_hash;
 
@@ -95,6 +97,7 @@ typedef struct strnodelist strnodelist;
 struct provnode {
 	flag		head;
 	flag		in_progress;
+	int		beg, end;
 	filenode	*fnode;
 	provnode	*next, *last;
 };
@@ -118,6 +121,7 @@ struct strnodelist {
 struct filenode {
 	char		*filename;
 	flag		in_progress;
+	int		beg, end;
 	filenode	*next, *last;
 	f_reqnode	*req_list;
 	f_provnode	*prov_list;
@@ -130,11 +134,13 @@ strnodelist *bl_list;
 strnodelist *keep_list;
 strnodelist *skip_list;
 
-void do_file(filenode *fnode);
+int pre_do_file(filenode *fnode);
+void do_file(filenode *fnode, int t);
 void strnode_add(strnodelist **, char *, filenode *);
 int skip_ok(filenode *fnode);
 int keep_ok(filenode *fnode);
-void satisfy_req(f_reqnode *rnode, char *filename);
+int pre_satisfy_req(f_reqnode *rnode, char *filename);
+void satisfy_req(f_reqnode *rnode, char *filename, int t);
 void crunch_file(char *);
 void parse_require(filenode *, char *);
 void parse_provide(filenode *, char *);
@@ -240,7 +246,7 @@ filenode_new(char *filename)
 	temp->req_list = NULL;
 	temp->prov_list = NULL;
 	temp->keyword_list = NULL;
-	temp->in_progress = RESET;
+	temp->in_progress = RST;
 	/*
 	 * link the filenode into the list of filenodes.
 	 * note that the double linking means we can delete a
@@ -292,7 +298,7 @@ add_provide(filenode *fnode, char *s)
 	if (head == NULL) {
 		head = emalloc(sizeof(*head));
 		head->head = SET;
-		head->in_progress = RESET;
+		head->in_progress = RST;
 		head->fnode = NULL;
 		head->last = head->next = NULL;
 		Hash_SetValue(entry, head);
@@ -338,8 +344,8 @@ add_provide(filenode *fnode, char *s)
 #endif
 
 	pnode = emalloc(sizeof(*pnode));
-	pnode->head = RESET;
-	pnode->in_progress = RESET;
+	pnode->head = RST;
+	pnode->in_progress = RST;
 	pnode->fnode = fnode;
 	pnode->next = head->next;
 	pnode->last = head;
@@ -526,14 +532,14 @@ make_fake_provision(filenode *node)
 	} while (new == 0);
 	head = emalloc(sizeof(*head));
 	head->head = SET;
-	head->in_progress = RESET;
+	head->in_progress = RST;
 	head->fnode = NULL;
 	head->last = head->next = NULL;
 	Hash_SetValue(entry, head);
 
 	pnode = emalloc(sizeof(*pnode));
-	pnode->head = RESET;
-	pnode->in_progress = RESET;
+	pnode->head = RST;
+	pnode->in_progress = RST;
 	pnode->fnode = node;
 	pnode->next = head->next;
 	pnode->last = head;
@@ -611,6 +617,66 @@ crunch_all_files(void)
  * warning will be issued, and we will continue on..
  */
 
+int
+pre_satisfy_req(f_reqnode *rnode, char *filename)
+{
+	int max=0, v;
+	Hash_Entry *entry;
+	provnode *head;
+	provnode *node;
+
+	entry = rnode->entry;
+	head = Hash_GetValue(entry);
+
+	if (head == NULL) {
+		warnx("requirement `%s' in file `%s' has no providers.",
+		    Hash_GetKey(entry), filename);
+		exit_code = 1;
+		return -1;
+	}
+
+	/* return if the requirement is already satisfied. */
+	if (head->next == NULL)
+		return -1;
+
+	/* 
+	 * if list is marked as in progress,
+	 *	print that there is a circular dependency on it and abort
+	 */
+	if (head->in_progress == PRE) {
+		warnx("Circular dependency on provision `%s' in file `%s'.",
+		    Hash_GetKey(entry), filename);
+		exit_code = 1;
+		return -1;
+	}
+
+	if (head->in_progress > PRE)
+		return head->beg;
+
+	head->in_progress = PRE;
+	
+	/*
+	 * while provision_list is not empty
+	 *	do_file(first_member_of(provision_list));
+	 */
+	node = head->next;
+	while (node != NULL) {
+		v = pre_do_file(node->fnode);
+		if (max < v)
+			max = v;
+		node = node->next;
+	}
+	node = head->next;
+	while (node != NULL) {
+		do_file(node->fnode, max);
+		node = node->next;
+	}
+
+	head->beg = max + 1;
+	head->in_progress = SET;
+	return head->beg;
+}
+
 /*
  * given a requirement node (in a filename) we attempt to satisfy it.
  * we do some sanity checking first, to ensure that we have providers,
@@ -620,20 +686,17 @@ crunch_all_files(void)
  * provision.
  */
 void
-satisfy_req(f_reqnode *rnode, char *filename)
+satisfy_req(f_reqnode *rnode, char *filename __unused, int t)
 {
 	Hash_Entry *entry;
 	provnode *head;
+	provnode *node;
 
 	entry = rnode->entry;
 	head = Hash_GetValue(entry);
 
-	if (head == NULL) {
-		warnx("requirement `%s' in file `%s' has no providers.",
-		    Hash_GetKey(entry), filename);
-		exit_code = 1;
+	if (head == NULL)
 		return;
-	}
 
 	/* return if the requirement is already satisfied. */
 	if (head->next == NULL)
@@ -643,21 +706,28 @@ satisfy_req(f_reqnode *rnode, char *filename)
 	 * if list is marked as in progress,
 	 *	print that there is a circular dependency on it and abort
 	 */
-	if (head->in_progress == SET) {
-		warnx("Circular dependency on provision `%s' in file `%s'.",
-		    Hash_GetKey(entry), filename);
-		exit_code = 1;
+	if (head->in_progress == PRE) {
 		return;
 	}
 
-	head->in_progress = SET;
+	if (head->in_progress >= REQ) {
+		if (head->end > t)
+			head->end = t;
+		return;
+	}
+
+	head->in_progress = PRE;
 	
 	/*
 	 * while provision_list is not empty
 	 *	do_file(first_member_of(provision_list));
 	 */
-	while (head->next != NULL)
-		do_file(head->next->fnode);
+	node = head->next;
+	while (node != NULL) {
+		do_file(node->fnode, t);
+		node = node->next;
+	}
+	head->in_progress = REQ;
 }
 
 int
@@ -689,6 +759,57 @@ keep_ok(filenode *fnode)
 	return (!keep_list);
 }
 
+int
+pre_do_file(filenode *fnode)
+{
+	int max=0, v;
+	f_reqnode *r;
+
+	DPRINTF((stderr, "do_file on %s.\n", fnode->filename));
+
+	/*
+	 * if fnode is marked as in progress,
+	 *	 print that fnode; is circularly depended upon and abort.
+	 */
+	if (fnode->in_progress == PRE) {
+		warnx("Circular dependency on file `%s'.",
+			fnode->filename);
+		return -1;
+	}
+
+	if(fnode->in_progress > PRE)
+		return fnode->beg;
+
+	/* mark fnode */
+	fnode->in_progress = PRE;
+
+	/*
+	 * for each requirement of fnode -> r
+	 *	satisfy_req(r, filename)
+	 */
+	r = fnode->req_list;
+	while (r != NULL) {
+		v=pre_satisfy_req(r, fnode->filename);
+		if (max < v)
+			max = v;
+		r = r->next;
+	}
+	r = fnode->req_list;
+
+	/* do_it(fnode) */
+	DPRINTF((stderr, "next do: "));
+
+	/* if we were already in progress, don't print again */
+	if (skip_ok(fnode) && keep_ok(fnode))
+		printf("%s\n", fnode->filename);
+
+	DPRINTF((stderr, "nuking %s\n", fnode->filename));
+
+	fnode->beg = max + 1;
+	fnode->in_progress = SET;
+	return fnode->beg;
+}
+
 /*
  * given a filenode, we ensure we are not a cyclic graph.  if this
  * is ok, we loop over the filenodes requirements, calling satisfy_req()
@@ -700,12 +821,9 @@ keep_ok(filenode *fnode)
  * Circular dependancies will cause problems if we do.
  */
 void
-do_file(filenode *fnode)
+do_file(filenode *fnode, int t)
 {
 	f_reqnode *r, *r_tmp;
-	f_provnode *p, *p_tmp;
-	provnode *pnode;
-	int was_set;	
 
 	DPRINTF((stderr, "do_file on %s.\n", fnode->filename));
 
@@ -713,15 +831,18 @@ do_file(filenode *fnode)
 	 * if fnode is marked as in progress,
 	 *	 print that fnode; is circularly depended upon and abort.
 	 */
-	if (fnode->in_progress == SET) {
-		warnx("Circular dependency on file `%s'.",
-			fnode->filename);
-		was_set = exit_code = 1;
-	} else
-		was_set = 0;
+	if (fnode->in_progress == PRE) {
+		return;
+	}
+
+	if (fnode->in_progress >= SET) {
+		if (fnode->end > t)
+			fnode->end = t;
+		return;
+	}
 
 	/* mark fnode */
-	fnode->in_progress = SET;
+	fnode->in_progress = PRE;
 
 	/*
 	 * for each requirement of fnode -> r
@@ -730,15 +851,60 @@ do_file(filenode *fnode)
 	r = fnode->req_list;
 	while (r != NULL) {
 		r_tmp = r;
-		satisfy_req(r, fnode->filename);
+		satisfy_req(r, fnode->filename, t);
 		r = r->next;
-#if 0
-		if (was_set == 0)
-			free(r_tmp);
-#endif
 	}
+	fnode->in_progress = SET;
 	fnode->req_list = NULL;
 
+	/* do_it(fnode) */
+	DPRINTF((stderr, "next do: "));
+
+	/* if we were already in progress, don't print again */
+	if (skip_ok(fnode) && keep_ok(fnode))
+		printf("%s\n", fnode->filename);
+
+	DPRINTF((stderr, "nuking %s\n", fnode->filename));
+}
+
+void
+generate_ordering(void)
+{
+	int max=0, v;
+	filenode *node;
+	/*
+	 * while there remain undone files{f},
+	 *	pick an arbitrary f, and do_file(f)
+	 * Note that the first file in the file list is perfectly
+	 * arbitrary, and easy to find, so we use that.
+	 */
+
+	/*
+	 * N.B.: the file nodes "self delete" after they execute, so
+	 * after each iteration of the loop, the head will be pointing
+	 * to something totally different. The loop ends up being
+	 * executed only once for every strongly connected set of
+	 * nodes.
+	 */
+	node = fn_head->next;
+	while (node != NULL) {
+		DPRINTF((stderr, "generate on %s\n", fn_head->next->filename));
+		v=pre_do_file(node);
+		if (max < v)
+			max = v;
+		node = node->next;
+	}
+	node = fn_head->next;
+	while (node != NULL) {
+		do_file(node, max);
+		node = node->next;
+	}
+}
+
+#if 0
+void
+cleanup(void)
+{
 	/*
 	 * for each provision of fnode -> p
 	 *	remove fnode from provision list for p in hash table
@@ -759,21 +925,12 @@ do_file(filenode *fnode)
 	}
 	fnode->prov_list = NULL;
 
-	/* do_it(fnode) */
-	DPRINTF((stderr, "next do: "));
-
-	/* if we were already in progress, don't print again */
-	if (was_set == 0 && skip_ok(fnode) && keep_ok(fnode))
-		printf("%s\n", fnode->filename);
-	
 	if (fnode->next != NULL) {
 		fnode->next->last = fnode->last;
 	}
 	if (fnode->last != NULL) {
 		fnode->last->next = fnode->next;
 	}
-
-	DPRINTF((stderr, "nuking %s\n", fnode->filename));
 #if 0
 	if (was_set == 0) {
    		free(fnode->filename);
@@ -781,27 +938,4 @@ do_file(filenode *fnode)
 	}
 #endif
 }
-
-void
-generate_ordering(void)
-{
-
-	/*
-	 * while there remain undone files{f},
-	 *	pick an arbitrary f, and do_file(f)
-	 * Note that the first file in the file list is perfectly
-	 * arbitrary, and easy to find, so we use that.
-	 */
-
-	/*
-	 * N.B.: the file nodes "self delete" after they execute, so
-	 * after each iteration of the loop, the head will be pointing
-	 * to something totally different. The loop ends up being
-	 * executed only once for every strongly connected set of
-	 * nodes.
-	 */
-	while (fn_head->next != NULL) {
-		DPRINTF((stderr, "generate on %s\n", fn_head->next->filename));
-		do_file(fn_head->next);
-	}
-}
+#endif

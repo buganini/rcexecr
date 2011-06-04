@@ -7,13 +7,18 @@ Test:
 	git clone git://github.com/buganini/rcexecr.git
 	cd rcexecr
 	sudo make
+
 	setenv ARG1 start #tcsh
 	./rcexecr /etc/rc.d/*
 	setenv ARG1 stop #tcsh
 	./rcexecr -r /etc/rc.d/*
 
 	#add -x to actually execute
-	./rcexecr -x /etc/rc.d/*
+	./rcexecr -x testcase/rc.d/*
+
+	#test self modification
+	chmod -R 755 testcase/
+	./rcexecr -x testcase/rc.d/*
 
 Progress:
 	beg/end calculation: done

@@ -1,0 +1,8 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# REQUIRE: A
+
+/usr/src/sbin/rcexecr/rcexecr /usr/src/sbin/rcexecr/testcase/rc.d2/*

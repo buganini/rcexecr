@@ -1,0 +1,9 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: ROOT
+
+echo ROOT
+

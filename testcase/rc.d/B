@@ -1,0 +1,9 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: B
+# REQUIRE: A
+
+echo B

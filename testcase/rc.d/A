@@ -1,0 +1,10 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: A
+# REQUIRE: ROOT
+
+echo A
+sleep 5

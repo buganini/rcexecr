@@ -1013,20 +1013,7 @@ generate_ordering(void)
 	char c;
 	int i, j, num;
 	filenode *node;
-	/*
-	 * while there remain undone files{f},
-	 *	pick an arbitrary f, and do_file(f)
-	 * Note that the first file in the file list is perfectly
-	 * arbitrary, and easy to find, so we use that.
-	 */
 
-	/*
-	 * N.B.: the file nodes "self delete" after they execute, so
-	 * after each iteration of the loop, the head will be pointing
-	 * to something totally different. The loop ends up being
-	 * executed only once for every strongly connected set of
-	 * nodes.
-	 */
 	num=0;
 	node = fn_head->next;
 	while (node != NULL) {

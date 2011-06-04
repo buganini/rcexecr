@@ -3,6 +3,7 @@
 #endif
 
 /*
+ * Copyright (c) 2011 Kuan-Chung Chiu
  * Copyright (c) 1998, 1999 Matthew R. Green
  * All rights reserved.
  * Copyright (c) 1998

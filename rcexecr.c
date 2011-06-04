@@ -222,7 +222,7 @@ main(int argc, char *argv[])
 		ch=strtol(arg, NULL, 10);
 		write(ch, "?", 1);
 		while(file_count){
-			write(ch, buf, sprintf(buf, "%s\n", argv[0]));
+			write(ch, buf, sprintf(buf, "%s\n", file_list[0]));
 			file_count-=1;
 			file_list+=1;
 		}

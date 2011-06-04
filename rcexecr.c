@@ -318,6 +318,7 @@ filenode_new(char *filename)
 	temp->prov_list = NULL;
 	temp->keyword_list = NULL;
 	temp->in_progress = RST;
+	temp->pid = 0;
 	/*
 	 * link the filenode into the list of filenodes.
 	 * note that the double linking means we can delete a
@@ -957,8 +958,7 @@ void regenerate(const char c)
 	provnode *rhead, *rnode;
 	f_reqnode *r;
 
-	if (!execute)
-		printf("Regenerate..\n");
+	printf("Regenerate..\n");
 
 	//reset in_progress
 	node = fn_head->next;
@@ -1078,7 +1078,7 @@ generate_ordering(void)
 			t=end[j]->end;
 		while(i<num && beg[i]->beg==t){
 			/* if we were already in progress, don't print again */
-			if (beg[i]->todo) {
+			if (beg[i]->todo && beg[i]->pid==0) {
 				eargv[eargi]=beg[i]->filename;
 				if (execute) {
 					beg[i]->pid=fork();

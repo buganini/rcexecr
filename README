@@ -17,8 +17,8 @@ Progress:
 	update document:
 
 Concept:
-	beg/end: the proper timing to launch script / wait it finished
-	When a node's requirement is satisfied, it would be launch by fork()+exec().
+	beg/end: the proper timing to launch script / wait it finished.
+	When a node's requirement is satisfied, it would be launched by fork()+exec().
 	When a node is required to be done, it would be waited by waitpid().
 
 	the beg/end is sorted ascendly without -r, descendly with -r.

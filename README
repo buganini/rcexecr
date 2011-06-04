@@ -25,7 +25,7 @@ Concept:
 
 	self modification:
 		for loading /usr/local/etc/rc.d/*, I have an idea.
-		consider the dependency as a graph, the file as node,
+		consider the dependencies as a graph, the files as nodes,
 		when subprocess exec(rcexecr), the node take whole graph as input,
 		and regenerate it with adding new node.
 		candidated approach:

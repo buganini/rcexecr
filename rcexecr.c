@@ -155,6 +155,8 @@ void insert_before(void);
 Hash_Entry *make_fake_provision(filenode *);
 void crunch_all_files(void);
 void initialize(void);
+int cmp_beg(const void * a, const void * b);
+int cmp_end(const void * a, const void * b);
 void generate_ordering(void);
 int main(int, char *[]);
 
@@ -798,11 +800,6 @@ pre_do_file(filenode *fnode)
 
 	/* do_it(fnode) */
 	DPRINTF((stderr, "next do: "));
-
-	/* if we were already in progress, don't print again */
-	if (skip_ok(fnode) && keep_ok(fnode))
-		printf("%s\n", fnode->filename);
-
 	DPRINTF((stderr, "nuking %s\n", fnode->filename));
 
 	fnode->beg = max + 1;
@@ -835,7 +832,7 @@ do_file(filenode *fnode, int t)
 		return;
 	}
 
-	if (fnode->in_progress >= SET) {
+	if (fnode->in_progress >= REQ) {
 		if (fnode->end > t)
 			fnode->end = t;
 		return;
@@ -843,7 +840,7 @@ do_file(filenode *fnode, int t)
 
 	/* mark fnode */
 	fnode->in_progress = PRE;
-
+	fnode->end = t;
 	/*
 	 * for each requirement of fnode -> r
 	 *	satisfy_req(r, filename)
@@ -854,23 +851,35 @@ do_file(filenode *fnode, int t)
 		satisfy_req(r, fnode->filename, t);
 		r = r->next;
 	}
-	fnode->in_progress = SET;
+	fnode->in_progress = REQ;
 	fnode->req_list = NULL;
 
 	/* do_it(fnode) */
 	DPRINTF((stderr, "next do: "));
-
-	/* if we were already in progress, don't print again */
-	if (skip_ok(fnode) && keep_ok(fnode))
-		printf("%s\n", fnode->filename);
-
 	DPRINTF((stderr, "nuking %s\n", fnode->filename));
+}
+
+int
+cmp_beg(const void * a, const void * b)
+{
+	const filenode * const *p=a;
+	const filenode * const *q=b;
+	return ( (*p)->beg - (*q)->beg );
+}
+
+int
+cmp_end(const void * a, const void * b)
+{
+	const filenode * const *p=a;
+	const filenode * const *q=b;
+	return ( (*p)->end - (*q)->end );
 }
 
 void
 generate_ordering(void)
 {
 	int max=0, v;
+	int i, j, num;
 	filenode *node;
 	/*
 	 * while there remain undone files{f},
@@ -886,6 +895,7 @@ generate_ordering(void)
 	 * executed only once for every strongly connected set of
 	 * nodes.
 	 */
+	num=0;
 	node = fn_head->next;
 	while (node != NULL) {
 		DPRINTF((stderr, "generate on %s\n", fn_head->next->filename));
@@ -893,11 +903,41 @@ generate_ordering(void)
 		if (max < v)
 			max = v;
 		node = node->next;
+		num+=1;
 	}
+
+	filenode *beg[num], *end[num];
+
+	i=0;
 	node = fn_head->next;
 	while (node != NULL) {
+		beg[i]=node;
+		end[i]=node;
 		do_file(node, max);
 		node = node->next;
+		i+=1;
+	}
+
+	qsort(beg, num, sizeof(filenode *), cmp_beg);
+	qsort(end, num, sizeof(filenode *), cmp_end);
+
+	int t=0;
+	i=0;
+	j=0;
+	while(t<=max){
+		while(i<num && beg[i]->beg==t){
+			/* if we were already in progress, don't print again */
+			if (skip_ok(beg[i]) && keep_ok(beg[i]))
+				printf("%d\tbeg %s\n", t, beg[i]->filename);
+			i+=1;
+		}
+		while(j<num && end[j]->end==t){
+			/* if we were already in progress, don't print again */
+			if (skip_ok(end[j]) && keep_ok(end[j]))
+				printf("%d\tend %s\n", t, end[j]->filename);
+			j+=1;
+		}
+		t+=1;
 	}
 }
 

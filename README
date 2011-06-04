@@ -36,6 +36,7 @@ Concept:
 		and regenerate it with adding new node.
 		candidated approach:
 			if (getenv("RCEXECR")!=NULL) {
+				//ignore all arguments
 				//send signal, new items to the pid.
 				exit(0);
 			} else {

@@ -796,7 +796,6 @@ pre_do_file(filenode *fnode)
 			max = v;
 		r = r->next;
 	}
-	r = fnode->req_list;
 
 	/* do_it(fnode) */
 	DPRINTF((stderr, "next do: "));

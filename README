@@ -7,7 +7,11 @@ Test:
 	git clone git://github.com/buganini/rcexecr.git
 	cd rcexecr
 	sudo make
+	setenv ARG1 start #tcsh
 	./rcexecr /etc/rc.d/*
+
+	#add -x to actually execute
+	./rcexecr -x /etc/rc.d/*
 
 Progress:
 	beg/end calculation: done

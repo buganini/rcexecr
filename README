@@ -1,0 +1,36 @@
+rcexecr is modified from rcorder(8) from freebsd(/netbsd)
+
+It aims to do things that rcorder and part of /etc/rc do in parallel.
+
+Test:
+	cd /usr/src/sbin/
+	git clone git://github.com/buganini/rcexecr.git
+	cd rcexecr
+	sudo make
+	./rcexecr /etc/rc.d/*
+
+Progress:
+	beg/end calculation: done
+	fork/exec/waitpid:
+	-r(reverse, for /etc/rc.shutdown):
+	self modification:
+
+Concept:
+	beg/end: the proper timing to launch script / wait it finished
+	When a node's requirement is satisfied, it would be launch by fork()+exec().
+	When a node is required to be done, it would be waited by waitpid().
+
+	the beg/end is sorted ascendly without -r, descendly with -r.
+
+	self modification:
+		for loading /usr/local/etc/rc.d/*, I have an idea.
+		consider the dependency as a graph, the file as node,
+		when subprocess exec(rcexecr), the node take whole graph as input,
+		and regenerate it with adding new node.
+		candidated approach:
+			if (getenv("RCEXECR")!=NULL) {
+				//send signal, new items to the pid.
+				exit(0);
+			} else {
+				setenv("RCEXECR", getpid());
+			}

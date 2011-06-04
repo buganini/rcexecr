@@ -968,6 +968,7 @@ void regenerate(const char c)
 		while (r != NULL) {
 			rhead = Hash_GetValue(r->entry);
 			if (rhead != NULL) {
+				rhead->in_progress = RST;
 				rnode = rhead->next;
 				while (rnode != NULL) {
 					rnode->in_progress = RST;

@@ -19,7 +19,7 @@ Progress:
 	beg/end calculation: done
 	fork/exec/waitpid/-x(execute, or dry print): done
 	-r(reverse, for /etc/rc.shutdown): done
-	self modification:
+	self modification: done
 	update document:
 
 Concept:

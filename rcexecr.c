@@ -43,6 +43,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 
 #include <err.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -125,6 +127,7 @@ struct strnodelist {
 struct filenode {
 	char		*filename;
 	flag		in_progress;
+	flag		todo;
 	int		beg, end;
 	int		pid;
 	filenode	*next, *last;
@@ -145,6 +148,8 @@ int reverse=1;
 char **eargv;
 int eargc;
 int eargs;
+
+int tunnel[2];
 
 int pre_do_file(filenode *fnode);
 void do_file(filenode *fnode, int t);
@@ -169,6 +174,7 @@ void crunch_all_files(void);
 void initialize(void);
 int cmp_beg(const void * a, const void * b);
 int cmp_end(const void * a, const void * b);
+void regenerate(const char c);
 void generate_ordering(void);
 int main(int, char *[]);
 
@@ -210,6 +216,18 @@ main(int argc, char *argv[])
 	file_count = argc;
 	file_list = argv;
 
+	if((arg=getenv("rcexecr"))!=NULL){
+		ch=strtol(arg, NULL, 10);
+		write(ch, "?", 1);
+		while(file_count){
+			write(ch, buf, sprintf(buf, "%s\n", argv[0]));
+			file_count-=1;
+			file_list+=1;
+		}
+		write(ch, ";", 1);
+		return 0;
+	}
+
 	eargs=4;
 	eargc=1;
 	eargv=malloc(sizeof(char *)*eargs);
@@ -229,6 +247,13 @@ main(int argc, char *argv[])
 		}
 		break;
 	}
+
+	if (pipe(tunnel)==-1) {
+		warnx("pipe() failed\n");
+		exit(1);
+	}
+	sprintf(buf, "%d", tunnel[1]);
+	setenv("rcexecr", buf, 1);
 
 	DPRINTF((stderr, "parse_args\n"));
 	initialize();
@@ -556,6 +581,10 @@ crunch_file(char *filename)
 			parse_keywords(node, buf + keywords_flag);
 	}
 	fclose(fp);
+	if(skip_ok(node) && keep_ok(node))
+		node->todo = TRUE;
+	else
+		node->todo = FALSE;
 }
 
 Hash_Entry *
@@ -913,10 +942,75 @@ cmp_end(const void * a, const void * b)
 	return ( (*p)->end - (*q)->end ) * reverse;
 }
 
+void regenerate(const char c)
+{
+	char ibuf[256];
+	char buf[256];
+	int buf_i=0;
+	int v, len;
+	int conncnt=0;
+	filenode *node;
+	provnode *rhead, *rnode;
+	f_reqnode *r;
+
+	if (!execute)
+		printf("Regenerate..\n");
+
+	//reset in_progress
+	node = fn_head->next;
+	while (node != NULL) {
+		node->in_progress = RST;
+		r=node->req_list;
+		while (r != NULL) {
+			rhead = Hash_GetValue(r->entry);
+			if (rhead != NULL) {
+				rnode = rhead->next;
+				while (rnode != NULL) {
+					rnode->in_progress = RST;
+					rnode = rnode->next;
+				}
+			}
+			r = r->next;
+		}
+		node = node->next;
+	}
+
+	len=1;
+	ibuf[0]=c;
+	do {
+		for (v=0;v<len;++v) {
+			switch (ibuf[v]) {
+				case '?':
+					conncnt+=1;
+					break;
+				case ';':
+					conncnt-=1;
+					break;
+				case '\n':
+					buf[buf_i]=0;
+					buf_i=0;
+					crunch_file(buf);
+					break;
+				default:
+					buf[buf_i]=ibuf[v];
+					buf_i+=1;
+			}
+		}
+		len = read(tunnel[0], ibuf, 256);
+		if (len < 0 && errno!=EAGAIN) {
+			warnx("Read error at receiving new items\n");
+			exit(1);
+		}
+	} while (conncnt);
+	insert_before();
+	generate_ordering();
+}
+
 void
 generate_ordering(void)
 {
 	int max=0, v;
+	char c;
 	int i, j, num;
 	filenode *node;
 	/*
@@ -972,6 +1066,7 @@ generate_ordering(void)
 	int t=0;
 	i=0;
 	j=0;
+	fcntl(tunnel[0], F_SETFL, O_NONBLOCK); 
 	while(i<num || j<num){
 		if(i<num)
 			t=beg[i]->beg;
@@ -979,17 +1074,18 @@ generate_ordering(void)
 			t=end[j]->end;
 		while(i<num && beg[i]->beg==t){
 			/* if we were already in progress, don't print again */
-			if (skip_ok(beg[i]) && keep_ok(beg[i])) {
+			if (beg[i]->todo) {
 				eargv[0]=beg[i]->filename;
 				if (execute) {
 					beg[i]->pid=fork();
 					if(beg[i]->pid==0){
+						close(tunnel[0]);
 						exit_code=-execvp(eargv[0], eargv);
-						return;
+						goto exit;
 					}
 					if(beg[i]->pid<0){
 						exit_code=1;
-						return;
+						goto exit;
 					}
 				} else {
 					printf("%d\tbeg\t", t);
@@ -1002,17 +1098,28 @@ generate_ordering(void)
 		}
 		while(j<num && end[j]->end==t){
 			/* if we were already in progress, don't print again */
-			if (skip_ok(end[j]) && keep_ok(end[j])) {
+			if (end[j]->todo) {
 				if (execute) {
 					waitpid(end[j]->pid, NULL, 0);
 				} else {
 					printf("%d\tend\t%s\n", t, end[j]->filename);
 				}
+				end[j]->todo=FALSE;
 			}
 			j+=1;
 		}
 		t+=1*reverse;
+		v = read(tunnel[0], &c, 1);
+		if (v > 0)
+			regenerate(c);
+		if (v < 0  && errno != EAGAIN) {
+			exit_code = 1;
+			break;
+		}
+		
 	}
+	exit:
+	exit(exit_code);
 }
 
 #if 0

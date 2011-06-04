@@ -973,7 +973,7 @@ generate_ordering(void)
 	while(i<num || j<num){
 		if(i<num)
 			t=beg[i]->beg;
-		if(j<num && t>end[j]->end)
+		if(j<num && t*reverse>end[j]->end*reverse)
 			t=end[j]->end;
 		while(i<num && beg[i]->beg==t){
 			/* if we were already in progress, don't print again */
@@ -1009,6 +1009,7 @@ generate_ordering(void)
 			}
 			j+=1;
 		}
+		t+=1*reverse;
 	}
 }
 

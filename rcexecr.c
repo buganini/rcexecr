@@ -138,6 +138,7 @@ strnodelist *keep_list;
 strnodelist *skip_list;
 
 int execute=0;
+int reverse=1;
 
 char **eargv;
 int eargc;
@@ -176,7 +177,7 @@ main(int argc, char *argv[])
 	char *arg;
 	int ch;
 
-	while ((ch = getopt(argc, argv, "dk:s:x")) != -1)
+	while ((ch = getopt(argc, argv, "dk:rs:x")) != -1)
 		switch (ch) {
 		case 'd':
 #ifdef DEBUG
@@ -187,6 +188,9 @@ main(int argc, char *argv[])
 			break;
 		case 'k':
 			strnode_add(&keep_list, optarg, 0);
+			break;
+		case 'r':
+			reverse=-1;
 			break;
 		case 's':
 			strnode_add(&skip_list, optarg, 0);
@@ -896,7 +900,7 @@ cmp_beg(const void * a, const void * b)
 {
 	const filenode * const *p=a;
 	const filenode * const *q=b;
-	return ( (*p)->beg - (*q)->beg );
+	return ( (*p)->beg - (*q)->beg ) * reverse;
 }
 
 int
@@ -904,7 +908,7 @@ cmp_end(const void * a, const void * b)
 {
 	const filenode * const *p=a;
 	const filenode * const *q=b;
-	return ( (*p)->end - (*q)->end );
+	return ( (*p)->end - (*q)->end ) * reverse;
 }
 
 void
@@ -950,48 +954,64 @@ generate_ordering(void)
 		i+=1;
 	}
 
+	if(reverse==-1){
+		node = fn_head->next;
+		while (node != NULL) {
+			i=node->beg;
+			node->beg=node->end;
+			node->end=i;
+			node = node->next;
+		}
+	}
+
 	qsort(beg, num, sizeof(filenode *), cmp_beg);
 	qsort(end, num, sizeof(filenode *), cmp_end);
 
-	int t=0;
+	int curr_beg;
+	int curr_end;
 	i=0;
 	j=0;
-	while(t<=max){
-		while(i<num && beg[i]->beg==t){
-			/* if we were already in progress, don't print again */
-			if (skip_ok(beg[i]) && keep_ok(beg[i])) {
-				eargv[0]=beg[i]->filename;
-				if (execute) {
-					beg[i]->pid=fork();
-					if(beg[i]->pid==0){
-						exit_code=-execvp(eargv[0], eargv);
-						return;
+	while(i<num || j<num){
+		if (i<num) {
+			curr_beg=beg[i]->beg;
+			while(i<num && beg[i]->beg==curr_beg){
+				/* if we were already in progress, don't print again */
+				if (skip_ok(beg[i]) && keep_ok(beg[i])) {
+					eargv[0]=beg[i]->filename;
+					if (execute) {
+						beg[i]->pid=fork();
+						if(beg[i]->pid==0){
+							exit_code=-execvp(eargv[0], eargv);
+							return;
+						}
+						if(beg[i]->pid<0){
+							exit_code=1;
+							return;
+						}
+					} else {
+						printf("%d\tbeg\t", curr_beg);
+						for(v=0;v<eargc;++v)
+							printf("%s ", eargv[v]);
+						printf("\n");
 					}
-					if(beg[i]->pid<0){
-						exit_code=1;
-						return;
+				}
+				i+=1;
+			}
+		}
+		if (j<num) {
+			curr_end=end[j]->end;
+			while(j<num && end[j]->end==curr_end){
+				/* if we were already in progress, don't print again */
+				if (skip_ok(end[j]) && keep_ok(end[j])) {
+					if (execute) {
+						waitpid(end[j]->pid, NULL, 0);
+					} else {
+						printf("%d\tend\t%s\n", curr_end, end[j]->filename);
 					}
-				} else {
-					printf("%d\tbeg\t", t);
-					for(v=0;v<eargc;++v)
-						printf("%s ", eargv[v]);
-					printf("\n");
 				}
+				j+=1;
 			}
-			i+=1;
 		}
-		while(j<num && end[j]->end==t){
-			/* if we were already in progress, don't print again */
-			if (skip_ok(end[j]) && keep_ok(end[j])) {
-				if (execute) {
-					waitpid(end[j]->pid, NULL, 0);
-				} else {
-					printf("%d\tend\t%s\n", t, end[j]->filename);
-				}
-			}
-			j+=1;
-		}
-		t+=1;
 	}
 }
 

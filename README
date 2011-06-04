@@ -50,3 +50,8 @@ Concept:
 			}
 			after receiving new items, call regenerate(),
 			which exit() directly.
+
+Todo:
+	real case: modification for /etc/rc /etc/rc.shutdown and some things to add to /etc/rc.d/*
+	zombieskiller
+	vfork

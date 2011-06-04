@@ -955,7 +955,7 @@ void regenerate(const char c)
 	int v, len;
 	int conncnt=0;
 	filenode *node;
-	provnode *rhead, *rnode;
+	provnode *phead;
 	f_reqnode *r;
 
 	printf("Regenerate..\n");
@@ -966,14 +966,9 @@ void regenerate(const char c)
 		node->in_progress = RST;
 		r=node->req_list;
 		while (r != NULL) {
-			rhead = Hash_GetValue(r->entry);
-			if (rhead != NULL) {
-				rhead->in_progress = RST;
-				rnode = rhead->next;
-				while (rnode != NULL) {
-					rnode->in_progress = RST;
-					rnode = rnode->next;
-				}
+			phead = Hash_GetValue(r->entry);
+			if (phead != NULL) {
+				phead->in_progress = RST;
 			}
 			r = r->next;
 		}

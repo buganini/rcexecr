@@ -9,6 +9,8 @@ Test:
 	sudo make
 	setenv ARG1 start #tcsh
 	./rcexecr /etc/rc.d/*
+	setenv ARG1 stop #tcsh
+	./rcexecr -r /etc/rc.d/*
 
 	#add -x to actually execute
 	./rcexecr -x /etc/rc.d/*

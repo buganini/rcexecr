@@ -23,7 +23,7 @@ Progress:
 	fork/exec/waitpid/-x(execute, or dry print): done
 	-r(reverse, for /etc/rc.shutdown): done
 	self modification: done
-	patch for /etc: testing
+	patch for /etc: done
 	update document:
 
 Concept:

@@ -216,7 +216,7 @@ main(int argc, char *argv[])
 	file_count = argc;
 	file_list = argv;
 
-	if((arg=getenv("rcexecr"))!=NULL){
+	if((arg=getenv("RCEXECR"))!=NULL){
 		//ignoring all arguments
 		ch=strtol(arg, NULL, 10);
 		write(ch, "?", 1);
@@ -254,7 +254,7 @@ main(int argc, char *argv[])
 		exit(1);
 	}
 	sprintf(buf, "%d", tunnel[1]);
-	setenv("rcexecr", buf, 1);
+	setenv("RCEXECR", buf, 1);
 
 	DPRINTF((stderr, "parse_args\n"));
 	initialize();

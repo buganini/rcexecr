@@ -46,6 +46,8 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 #include <util.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 #include "ealloc.h"
 #include "sprite.h"
@@ -122,6 +124,7 @@ struct filenode {
 	char		*filename;
 	flag		in_progress;
 	int		beg, end;
+	int		pid;
 	filenode	*next, *last;
 	f_reqnode	*req_list;
 	f_provnode	*prov_list;
@@ -133,6 +136,12 @@ filenode fn_head_s, *fn_head;
 strnodelist *bl_list;
 strnodelist *keep_list;
 strnodelist *skip_list;
+
+int execute=0;
+
+char **eargv;
+int eargc;
+int eargs;
 
 int pre_do_file(filenode *fnode);
 void do_file(filenode *fnode, int t);
@@ -163,9 +172,11 @@ int main(int, char *[]);
 int
 main(int argc, char *argv[])
 {
+	char buf[16];
+	char *arg;
 	int ch;
 
-	while ((ch = getopt(argc, argv, "dk:s:")) != -1)
+	while ((ch = getopt(argc, argv, "dk:s:x")) != -1)
 		switch (ch) {
 		case 'd':
 #ifdef DEBUG
@@ -180,6 +191,9 @@ main(int argc, char *argv[])
 		case 's':
 			strnode_add(&skip_list, optarg, 0);
 			break;
+		case 'x':
+			execute=1;
+			break;
 		default:
 			/* XXX should crunch it? */
 			break;
@@ -189,6 +203,26 @@ main(int argc, char *argv[])
 
 	file_count = argc;
 	file_list = argv;
+
+	eargs=4;
+	eargc=1;
+	eargv=malloc(sizeof(char *)*eargs);
+	eargv[eargc]=NULL;
+	for(ch=1;;++ch){
+		sprintf(buf,"ARG%d",ch);
+		arg=getenv(buf);
+		if(arg!=NULL){
+			if(eargs<=eargc+1){
+				eargs+=4;
+				eargv=realloc(eargv, sizeof(char *)*eargs);
+			}
+			eargv[eargc]=arg;
+			eargc+=1;
+			eargv[eargc]=NULL;
+			continue;
+		}
+		break;
+	}
 
 	DPRINTF((stderr, "parse_args\n"));
 	initialize();
@@ -925,14 +959,36 @@ generate_ordering(void)
 	while(t<=max){
 		while(i<num && beg[i]->beg==t){
 			/* if we were already in progress, don't print again */
-			if (skip_ok(beg[i]) && keep_ok(beg[i]))
-				printf("%d\tbeg %s\n", t, beg[i]->filename);
+			if (skip_ok(beg[i]) && keep_ok(beg[i])) {
+				eargv[0]=beg[i]->filename;
+				if (execute) {
+					beg[i]->pid=fork();
+					if(beg[i]->pid==0){
+						exit_code=-execvp(eargv[0], eargv);
+						return;
+					}
+					if(beg[i]->pid<0){
+						exit_code=1;
+						return;
+					}
+				} else {
+					printf("%d\tbeg\t", t);
+					for(v=0;v<eargc;++v)
+						printf("%s git", eargv[v]);
+					printf("\n");
+				}
+			}
 			i+=1;
 		}
 		while(j<num && end[j]->end==t){
 			/* if we were already in progress, don't print again */
-			if (skip_ok(end[j]) && keep_ok(end[j]))
-				printf("%d\tend %s\n", t, end[j]->filename);
+			if (skip_ok(end[j]) && keep_ok(end[j])) {
+				if (execute) {
+					waitpid(end[j]->pid, NULL, 0);
+				} else {
+					printf("%d\tend\t%s\n", t, end[j]->filename);
+				}
+			}
 			j+=1;
 		}
 		t+=1;

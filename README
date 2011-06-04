@@ -11,7 +11,7 @@ Test:
 
 Progress:
 	beg/end calculation: done
-	fork/exec/waitpid/-x(execute, or dry print):
+	fork/exec/waitpid/-x(execute, or dry print): done
 	-r(reverse, for /etc/rc.shutdown):
 	self modification:
 	update document:

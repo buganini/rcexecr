@@ -23,6 +23,7 @@ Progress:
 	fork/exec/waitpid/-x(execute, or dry print): done
 	-r(reverse, for /etc/rc.shutdown): done
 	self modification: done
+	patch for /etc: testing
 	update document:
 
 Concept:
@@ -50,6 +51,5 @@ Concept:
 			which exit() directly.
 
 Todo:
-	real case: modification for /etc/rc /etc/rc.shutdown and some things to add to /etc/rc.d/*
 	zombieskiller
 	vfork

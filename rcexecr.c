@@ -225,7 +225,7 @@ main(int argc, char *argv[])
 			file_list+=1;
 		}
 		write(ch, ";", 1);
-		return 0;
+		exit(0);
 	}
 
 	eargs=4;

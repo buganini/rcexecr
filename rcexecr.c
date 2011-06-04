@@ -146,6 +146,7 @@ int execute=0;
 int reverse=1;
 
 char **eargv;
+int eargi;
 int eargc;
 int eargs;
 
@@ -230,10 +231,10 @@ main(int argc, char *argv[])
 	}
 
 	eargs=4;
-	eargc=1;
+	eargc=0;
 	eargv=malloc(sizeof(char *)*eargs);
 	eargv[eargc]=NULL;
-	for(ch=1;;++ch){
+	for(ch=0;;++ch){
 		sprintf(buf,"ARG%d",ch);
 		arg=getenv(buf);
 		if(arg!=NULL){
@@ -241,13 +242,15 @@ main(int argc, char *argv[])
 				eargs+=4;
 				eargv=realloc(eargv, sizeof(char *)*eargs);
 			}
+			if(strcmp(arg, "?")==0)
+				eargi=eargc;
 			eargv[eargc]=arg;
 			eargc+=1;
-			eargv[eargc]=NULL;
 			continue;
 		}
 		break;
 	}
+	eargv[eargc]=NULL;	
 
 	if (pipe(tunnel)==-1) {
 		warnx("pipe() failed\n");
@@ -1076,7 +1079,7 @@ generate_ordering(void)
 		while(i<num && beg[i]->beg==t){
 			/* if we were already in progress, don't print again */
 			if (beg[i]->todo) {
-				eargv[0]=beg[i]->filename;
+				eargv[eargi]=beg[i]->filename;
 				if (execute) {
 					beg[i]->pid=fork();
 					if(beg[i]->pid==0){

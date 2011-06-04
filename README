@@ -8,10 +8,8 @@ Test:
 	cd rcexecr
 	sudo make
 
-	setenv ARG1 start #tcsh
-	./rcexecr /etc/rc.d/*
-	setenv ARG1 stop #tcsh
-	./rcexecr -r /etc/rc.d/*
+	env ARG0=\? ARG1=start./rcexecr /etc/rc.d/*
+	env ARG0=\? ARG1=stop ./rcexecr -r /etc/rc.d/*
 
 	#add -x to actually execute
 	./rcexecr -x testcase/rc.d/*

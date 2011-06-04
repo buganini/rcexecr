@@ -32,18 +32,21 @@ Concept:
 	When a node's requirement is satisfied, it would be launched by fork()+exec().
 	When a node is required to be done, it would be waited by waitpid().
 
-	the beg/end is sorted ascendly without -r, descendly with -r.
+	the whole schedule is reversed with -r.
 
-	self modification:
-		for loading /usr/local/etc/rc.d/*, I have an idea.
+	Circular dependency detecting:
+		see https://github.com/buganini/rcexecr/commit/8460c6006dd041fe4920047ee80c3bd19896f493
+
+	Self modification:
 		consider the dependencies as a graph, the files as nodes,
 		when subprocess exec(rcexecr), the node take whole graph as input,
 		and regenerate it with adding new node.
-		candidated approach:
+		approach:
 			if (getenv("RCEXECR")!=NULL) {
-				//ignore all arguments
-				//send signal, new items to the pid.
+				//send new items to the nexus by writing to pipe.
 				exit(0);
 			} else {
 				setenv("RCEXECR", getpid());
 			}
+			after receiving new items, call regenerate(),
+			which exit() directly.

@@ -24,7 +24,7 @@ Progress:
 	-r(reverse, for /etc/rc.shutdown): done
 	self modification: done
 	patch for /etc: done
-	update document:
+	update document: partial
 
 Concept:
 	beg/end: the proper timing to launch script / wait it finished.

@@ -2,7 +2,21 @@ rcexecr is modified from rcorder(8) from freebsd(/netbsd)
 
 It aims to do things that rcorder and part of /etc/rc do in parallel.
 
-Test:
+Test with modification on /etc:
+	#install
+	cd /usr/src/sbin/
+	git clone git://github.com/buganini/rcexecr.git
+	cd rcexecr
+	sudo make all install
+
+	#patch /etc
+	cd /etc/
+	patch -p1 < /usr/src/sbin/rcexecr/etc.patch.txt
+
+	#reboot
+	shutdown -r now
+
+Test without affecting system:
 	cd /usr/src/sbin/
 	git clone git://github.com/buganini/rcexecr.git
 	cd rcexecr

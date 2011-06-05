@@ -958,8 +958,6 @@ void regenerate(const char c)
 	provnode *phead;
 	f_reqnode *r;
 
-	printf("Regenerate..\n");
-
 	//reset in_progress
 	node = fn_head->next;
 	while (node != NULL) {

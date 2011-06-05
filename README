@@ -45,7 +45,7 @@ Concept:
 				//send new items to the nexus by writing to pipe.
 				exit(0);
 			} else {
-				setenv("RCEXECR", getpid());
+				setenv("RCEXECR", pipe-fd);
 			}
 			after receiving new items, call regenerate(),
 			which exit() directly.

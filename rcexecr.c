@@ -985,12 +985,12 @@ void regenerate(const char c)
 					conncnt-=1;
 					break;
 				case '\n':
-					buf[buf_i]=0;
-					buf_i=0;
 					if (buf_i >= sizeof(buf)) {
 						warnx("Buffer under run.\n");
 						continue;
 					}
+					buf[buf_i]=0;
+					buf_i=0;
 					crunch_file(buf);
 					break;
 				default:

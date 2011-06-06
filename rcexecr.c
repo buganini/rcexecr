@@ -951,7 +951,7 @@ void regenerate(const char c)
 {
 	char ibuf[256];
 	char buf[256];
-	int buf_i=0;
+	unsigned int buf_i=0;
 	int v, len;
 	int conncnt=0;
 	filenode *node;
@@ -987,9 +987,16 @@ void regenerate(const char c)
 				case '\n':
 					buf[buf_i]=0;
 					buf_i=0;
+					if (buf_i >= sizeof(buf)) {
+						warnx("Buffer under run.\n");
+						continue;
+					}
 					crunch_file(buf);
 					break;
 				default:
+					if (buf_i >= sizeof(buf)) {
+						continue;
+					}
 					buf[buf_i]=ibuf[v];
 					buf_i+=1;
 			}

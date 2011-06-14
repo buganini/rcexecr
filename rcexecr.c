@@ -176,6 +176,7 @@ void initialize(void);
 int cmp_beg(const void * a, const void * b);
 int cmp_end(const void * a, const void * b);
 void regenerate(const char c);
+pid_t vforkexec(void);
 void generate_ordering(void);
 int main(int, char *[]);
 
@@ -1011,6 +1012,18 @@ void regenerate(const char c)
 	generate_ordering();
 }
 
+pid_t
+vforkexec(void)
+{
+	static pid_t pid;
+	pid=vfork();
+	if(pid==0){
+		close(tunnel[0]);
+		return -execvp(eargv[0], eargv);
+	}
+	return pid;
+}
+
 void
 generate_ordering(void)
 {
@@ -1069,12 +1082,7 @@ generate_ordering(void)
 			if (beg[i]->todo && beg[i]->pid==0) {
 				eargv[eargi]=beg[i]->filename;
 				if (execute) {
-					beg[i]->pid=fork();
-					if(beg[i]->pid==0){
-						close(tunnel[0]);
-						exit_code=-execvp(eargv[0], eargv);
-						goto exit;
-					}
+					beg[i]->pid=vforkexec();
 					if(beg[i]->pid<0){
 						exit_code=1;
 						goto exit;

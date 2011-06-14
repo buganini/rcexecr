@@ -66,4 +66,3 @@ Concept:
 
 Todo:
 	zombieskiller (but this need another mapping and lookup)
-	vfork (but most system has COWed fork())

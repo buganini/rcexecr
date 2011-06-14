@@ -129,7 +129,7 @@ struct filenode {
 	flag		in_progress;
 	flag		todo;
 	int		beg, end;
-	int		pid;
+	pid_t		pid;
 	filenode	*next, *last;
 	f_reqnode	*req_list;
 	f_provnode	*prov_list;

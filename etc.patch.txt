@@ -1,6 +1,6 @@
 diff -ruN etc.orig/rc etc/rc
---- etc.orig/rc	2011-06-05 04:26:07.000000000 +0800
-+++ etc/rc	2011-06-05 07:36:03.000000000 +0800
+--- etc.orig/rc	2011-08-26 23:04:58.000000000 +0800
++++ etc/rc	2011-08-26 23:10:17.000000000 +0800
 @@ -74,44 +74,13 @@
  skip="-s nostart"
  if [ `/sbin/sysctl -n security.jail.jailed` -eq 1 ]; then
@@ -48,8 +48,8 @@ diff -ruN etc.orig/rc etc/rc
  echo ''
  date
 diff -ruN etc.orig/rc.d/FILESYSTEMS etc/rc.d/FILESYSTEMS
---- etc.orig/rc.d/FILESYSTEMS	2011-06-05 04:26:07.000000000 +0800
-+++ etc/rc.d/FILESYSTEMS	2011-06-05 15:30:49.000000000 +0800
+--- etc.orig/rc.d/FILESYSTEMS	2011-08-26 23:04:58.000000000 +0800
++++ etc/rc.d/FILESYSTEMS	2011-08-26 23:10:17.000000000 +0800
 @@ -10,3 +10,19 @@
  #	to be mounted before starting.  It also serves as the default early /
  #	late divider; after this point, rc.d directories are rescanned to
@@ -71,8 +71,8 @@ diff -ruN etc.orig/rc.d/FILESYSTEMS etc/rc.d/FILESYSTEMS
 +
 +env ARG0=\? ARG1=${_boot} /sbin/rcexecr -x ${local_rc} 2>/dev/null
 diff -ruN etc.orig/rc.d/NETWORKING etc/rc.d/NETWORKING
---- etc.orig/rc.d/NETWORKING	2011-06-05 04:26:07.000000000 +0800
-+++ etc/rc.d/NETWORKING	2011-06-05 06:20:10.000000000 +0800
+--- etc.orig/rc.d/NETWORKING	2011-08-26 23:04:58.000000000 +0800
++++ etc/rc.d/NETWORKING	2011-08-26 23:10:17.000000000 +0800
 @@ -9,3 +9,19 @@
  
  #	This is a dummy dependency, for services which require networking
@@ -94,8 +94,8 @@ diff -ruN etc.orig/rc.d/NETWORKING etc/rc.d/NETWORKING
 +
 +env ARG0=\? ARG1=${_boot} /sbin/rcexecr -x ${local_rc} 2>/dev/null
 diff -ruN etc.orig/rc.shutdown etc/rc.shutdown
---- etc.orig/rc.shutdown	2011-06-05 04:26:07.000000000 +0800
-+++ etc/rc.shutdown	2011-06-05 07:28:47.000000000 +0800
+--- etc.orig/rc.shutdown	2011-08-26 23:04:58.000000000 +0800
++++ etc/rc.shutdown	2011-08-26 23:10:17.000000000 +0800
 @@ -47,18 +47,6 @@
  
  load_rc_config 'XXX'
@@ -139,3 +139,14 @@ diff -ruN etc.orig/rc.shutdown etc/rc.shutdown
  
  # Terminate the background watchdog timer (if it is running)
  #
+diff -ruN etc.orig/rc.subr etc/rc.subr
+--- etc.orig/rc.subr	2011-08-26 23:04:58.000000000 +0800
++++ etc/rc.subr	2011-08-26 23:11:11.000000000 +0800
+@@ -191,6 +191,7 @@
+ 	esac
+ 	if [ "$autoboot" = yes -o "$always" = true ]; then
+ 		echo "ERROR: ABORTING BOOT (sending SIGTERM to parent)!"
++		killall -TERM rcexecr
+ 		kill -TERM ${RC_PID}
+ 	fi
+ 	exit 1

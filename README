@@ -43,7 +43,7 @@ Progress:
 Concept:
 	beg/end: the proper timing to launch script / wait it finished.
 	When a node's requirement is satisfied, it would be launched by fork()+exec().
-	When a node is required to be done, it would be waited by waitpid().
+	When a node is required to be done, it would be waited for by waitpid().
 
 	the whole schedule is reversed with -r.
 

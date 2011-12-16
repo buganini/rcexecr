@@ -1101,6 +1101,7 @@ generate_ordering(void)
 				if (execute) {
 					waitpid(end[j]->pid, NULL, 0);
 				} else {
+					eargv[eargi]=end[j]->filename;
 					printf("%d\tend\t", t);
 					for(v=0;v<eargc;++v)
 						printf("%s ", eargv[v]);

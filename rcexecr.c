@@ -3,7 +3,7 @@
 #endif
 
 /*
- * Copyright (c) 2011 Kuan-Chung Chiu
+ * Copyright (c) 2011, 2012 Kuan-Chung Chiu
  * All rights reserved.
  * Copyright (c) 1998, 1999 Matthew R. Green
  * All rights reserved.
@@ -144,6 +144,7 @@ static strnodelist *skip_list;
 
 static int execute=0;
 static int reverse=1;
+static int sequential=0;
 
 static char **eargv;
 static int eargi;
@@ -186,7 +187,7 @@ main(int argc, char *argv[])
 	char *arg;
 	int ch;
 
-	while ((ch = getopt(argc, argv, "dk:rs:x")) != -1)
+	while ((ch = getopt(argc, argv, "dk:qrs:x")) != -1)
 		switch (ch) {
 		case 'd':
 #ifdef DEBUG
@@ -197,6 +198,9 @@ main(int argc, char *argv[])
 			break;
 		case 'k':
 			strnode_add(&keep_list, optarg, 0);
+			break;
+		case 'q':
+			sequential=1;
 			break;
 		case 'r':
 			reverse=-1;
@@ -1070,56 +1074,94 @@ generate_ordering(void)
 	int t=0;
 	i=0;
 	j=0;
-	fcntl(tunnel[0], F_SETFL, O_NONBLOCK); 
-	while(i<num || j<num){
-		if(i<num)
-			t=beg[i]->beg;
-		if(j<num && t*reverse>end[j]->end*reverse)
-			t=end[j]->end;
-		while(i<num && beg[i]->beg==t){
-			/* if we were already in progress, don't print again */
-			if (beg[i]->todo && beg[i]->pid==0) {
-				eargv[eargi]=beg[i]->filename;
-				if (execute) {
-					beg[i]->pid=vforkexec();
-					if(beg[i]->pid<0){
-						exit_code=1;
-						goto exit;
-					}
-				} else {
-					printf("%d\tbeg\t", t);
-					for(v=0;v<eargc;++v)
-						printf("%s ", eargv[v]);
-					printf("\n");
-				}
-			}
-			i+=1;
-		}
-		while(j<num && end[j]->end==t){
-			/* if we were already in progress, don't print again */
-			if (end[j]->todo) {
-				if (execute) {
-					waitpid(end[j]->pid, NULL, 0);
-				} else {
+	fcntl(tunnel[0], F_SETFL, O_NONBLOCK);
+
+	if(sequential){
+		while(j<num){
+			if(j<num && t*reverse>end[j]->end*reverse)
+				t=end[j]->end;
+			while(j<num && end[j]->end==t){
+				/* if we were already in progress, don't print again */
+				if (end[j]->todo) {
 					eargv[eargi]=end[j]->filename;
-					printf("%d\tend\t", t);
-					for(v=0;v<eargc;++v)
-						printf("%s ", eargv[v]);
-					printf("\n");
+					if (execute) {
+						end[j]->pid=vforkexec();
+						if(end[j]->pid<0){
+							exit_code=1;
+							goto exit;
+						}
+						waitpid(end[j]->pid, NULL, 0);
+
+					} else {
+						eargv[eargi]=end[j]->filename;
+						printf("%d\trun\t", t);
+						for(v=0;v<eargc;++v)
+							printf("%s ", eargv[v]);
+						printf("\n");
+					}
+					end[j]->todo=FALSE;
 				}
-				end[j]->todo=FALSE;
+				j+=1;
 			}
-			j+=1;
+			t+=1*reverse;
+			v = read(tunnel[0], &c, 1);
+			if (v > 0)
+				regenerate(c);
+			if (v < 0  && errno != EAGAIN) {
+				exit_code = 1;
+				break;
+			}
 		}
-		t+=1*reverse;
-		v = read(tunnel[0], &c, 1);
-		if (v > 0)
-			regenerate(c);
-		if (v < 0  && errno != EAGAIN) {
-			exit_code = 1;
-			break;
+	}else{
+		while(i<num || j<num){
+			if(i<num)
+				t=beg[i]->beg;
+			if(j<num && t*reverse>end[j]->end*reverse)
+				t=end[j]->end;
+			while(i<num && beg[i]->beg==t){
+				/* if we were already in progress, don't print again */
+				if (beg[i]->todo && beg[i]->pid==0) {
+					eargv[eargi]=beg[i]->filename;
+					if (execute) {
+						beg[i]->pid=vforkexec();
+						if(beg[i]->pid<0){
+							exit_code=1;
+							goto exit;
+						}
+					} else {
+						printf("%d\tbeg\t", t);
+						for(v=0;v<eargc;++v)
+							printf("%s ", eargv[v]);
+						printf("\n");
+					}
+				}
+				i+=1;
+			}
+			while(j<num && end[j]->end==t){
+				/* if we were already in progress, don't print again */
+				if (end[j]->todo) {
+					if (execute) {
+						waitpid(end[j]->pid, NULL, 0);
+					} else {
+						eargv[eargi]=end[j]->filename;
+						printf("%d\tend\t", t);
+						for(v=0;v<eargc;++v)
+							printf("%s ", eargv[v]);
+						printf("\n");
+					}
+					end[j]->todo=FALSE;
+				}
+				j+=1;
+			}
+			t+=1*reverse;
+			v = read(tunnel[0], &c, 1);
+			if (v > 0)
+				regenerate(c);
+			if (v < 0  && errno != EAGAIN) {
+				exit_code = 1;
+				break;
+			}		
 		}
-		
 	}
 	exit:
 	exit(exit_code);

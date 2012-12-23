@@ -1,7 +1,18 @@
-diff -ruN etc.orig/rc etc/rc
---- etc.orig/rc	2011-08-26 23:04:58.000000000 +0800
-+++ etc/rc	2011-08-26 23:10:17.000000000 +0800
-@@ -74,44 +74,13 @@
+diff -ruN /etc.orig/defaults/rc.conf /etc/defaults/rc.conf
+--- /etc.orig/defaults/rc.conf	2012-12-23 21:13:14.000000000 +0800
++++ /etc/defaults/rc.conf	2012-12-23 21:32:12.000000000 +0800
+@@ -24,6 +24,7 @@
+ rc_debug="NO"		# Set to YES to enable debugging output from rc.d
+ rc_info="NO"		# Enables display of informational messages at boot.
+ rc_startmsgs="YES" 	# Show "Starting foo:" messages at boot
++rcexecr_parallel="NO"	# Set to YES to enable parallel execution of rc-scripts.
+ rcshutdown_timeout="90" # Seconds to wait before terminating rc.shutdown
+ early_late_divider="FILESYSTEMS"	# Script that separates early/late
+ 			# stages of the boot process.  Make sure you know
+diff -ruN /etc.orig/rc /etc/rc
+--- /etc.orig/rc	2012-12-23 21:13:14.000000000 +0800
++++ /etc/rc	2012-12-23 21:38:43.000000000 +0800
+@@ -74,44 +74,15 @@
  skip="-s nostart"
  if [ `/sbin/sysctl -n security.jail.jailed` -eq 1 ]; then
  	skip="$skip -s nojail"
@@ -10,11 +21,11 @@ diff -ruN etc.orig/rc etc/rc
 -	fi
  fi
  
- # Do a first pass to get everything up to $early_late_divider so that
- # we can do a second pass that includes $local_startup directories
- #
+-# Do a first pass to get everything up to $early_late_divider so that
+-# we can do a second pass that includes $local_startup directories
+-#
 -files=`rcorder ${skip} /etc/rc.d/* 2>/dev/null`
- 
+-
 -_rc_elem_done=' '
 -for _rc_elem in ${files}; do
 -	run_rc_script ${_rc_elem} ${_boot}
@@ -43,18 +54,27 @@ diff -ruN etc.orig/rc etc/rc
 -
 -	run_rc_script ${_rc_elem} ${_boot}
 -done
-+env ARG0=\? ARG1=${_boot} rcexecr -x ${skip} /etc/rc.d/* 2>/dev/null
++load_rc_config 'rcexecr'
++if checkyesno rcexecr_parallel; then
++	rcexecr_parallel=""
++else
++	rcexecr_parallel=-q
++fi
++env ARG0=\? ARG1=${_boot} rcexecr ${rcexecr_parallel} -x ${skip} /etc/rc.d/* 2>/dev/null
  
  echo ''
  date
-diff -ruN etc.orig/rc.d/FILESYSTEMS etc/rc.d/FILESYSTEMS
---- etc.orig/rc.d/FILESYSTEMS	2011-08-26 23:04:58.000000000 +0800
-+++ etc/rc.d/FILESYSTEMS	2011-08-26 23:10:17.000000000 +0800
-@@ -10,3 +10,19 @@
- #	to be mounted before starting.  It also serves as the default early /
- #	late divider; after this point, rc.d directories are rescanned to
- #	catch scripts from other file systems than /.
-+
+diff -ruN /etc.orig/rc.d/FILESYSTEMS /etc/rc.d/FILESYSTEMS
+--- /etc.orig/rc.d/FILESYSTEMS	2012-12-23 21:13:14.000000000 +0800
++++ /etc/rc.d/FILESYSTEMS	2012-12-23 21:18:36.000000000 +0800
+@@ -6,7 +6,18 @@
+ # PROVIDE: FILESYSTEMS
+ # REQUIRE: root mountcritlocal cleanvar zfs
+ 
+-#	This is a dummy dependency, for services which require file systems
+-#	to be mounted before starting.  It also serves as the default early /
+-#	late divider; after this point, rc.d directories are rescanned to
+-#	catch scripts from other file systems than /.
 +if [ `/sbin/sysctl -n security.jail.jailed` -eq 1 ]; then
 +	exit
 +fi
@@ -70,14 +90,15 @@ diff -ruN etc.orig/rc.d/FILESYSTEMS etc/rc.d/FILESYSTEMS
 +esac
 +
 +env ARG0=\? ARG1=${_boot} /sbin/rcexecr -x ${local_rc} 2>/dev/null
-diff -ruN etc.orig/rc.d/NETWORKING etc/rc.d/NETWORKING
---- etc.orig/rc.d/NETWORKING	2011-08-26 23:04:58.000000000 +0800
-+++ etc/rc.d/NETWORKING	2011-08-26 23:10:17.000000000 +0800
-@@ -9,3 +9,19 @@
+diff -ruN /etc.orig/rc.d/NETWORKING /etc/rc.d/NETWORKING
+--- /etc.orig/rc.d/NETWORKING	2012-12-23 21:13:14.000000000 +0800
++++ /etc/rc.d/NETWORKING	2012-12-23 21:18:30.000000000 +0800
+@@ -8,5 +8,18 @@
+ # REQUIRE: defaultroute routed mrouted route6d mroute6d resolv bridge
+ # REQUIRE: static_arp static_ndp
  
- #	This is a dummy dependency, for services which require networking
- #	to be operational before starting.
-+
+-#	This is a dummy dependency, for services which require networking
+-#	to be operational before starting.
 +if [ `/sbin/sysctl -n security.jail.jailed` -ne 1 ]; then
 +	exit
 +fi
@@ -93,9 +114,9 @@ diff -ruN etc.orig/rc.d/NETWORKING etc/rc.d/NETWORKING
 +esac
 +
 +env ARG0=\? ARG1=${_boot} /sbin/rcexecr -x ${local_rc} 2>/dev/null
-diff -ruN etc.orig/rc.shutdown etc/rc.shutdown
---- etc.orig/rc.shutdown	2011-08-26 23:04:58.000000000 +0800
-+++ etc/rc.shutdown	2011-08-26 23:10:17.000000000 +0800
+diff -ruN /etc.orig/rc.shutdown /etc/rc.shutdown
+--- /etc.orig/rc.shutdown	2012-12-23 21:13:14.000000000 +0800
++++ /etc/rc.shutdown	2012-12-23 21:38:28.000000000 +0800
 @@ -47,18 +47,6 @@
  
  load_rc_config 'XXX'
@@ -115,7 +136,7 @@ diff -ruN etc.orig/rc.shutdown etc/rc.shutdown
  # If requested, start a watchdog timer in the background which
  # will terminate rc.shutdown if rc.shutdown doesn't complete
  # within the specified time.
-@@ -80,20 +68,15 @@
+@@ -80,20 +68,21 @@
  # Determine the shutdown order of the /etc/rc.d scripts,
  # and perform the operation
  #
@@ -135,14 +156,20 @@ diff -ruN etc.orig/rc.shutdown etc/rc.shutdown
 -	debug "run_rc_script $_rc_elem faststop"
 -	run_rc_script $_rc_elem faststop
 -done
-+env ARG0=\? ARG1=faststop rcexecr -rx ${rcexecr_opts} /etc/rc.d/* ${local_rc} 2>/dev/null
++load_rc_config 'rcexecr'
++if checkyesno rcexecr_parallel; then
++	rcexecr_parallel=""
++else
++	rcexecr_parallel=-q
++fi
++env ARG0=\? ARG1=faststop rcexecr ${rcexecr_parallel} -rx ${rcexecr_opts} /etc/rc.d/* ${local_rc} 2>/dev/null
  
  # Terminate the background watchdog timer (if it is running)
  #
-diff -ruN etc.orig/rc.subr etc/rc.subr
---- etc.orig/rc.subr	2011-08-26 23:04:58.000000000 +0800
-+++ etc/rc.subr	2011-08-26 23:11:11.000000000 +0800
-@@ -191,6 +191,7 @@
+diff -ruN /etc.orig/rc.subr /etc/rc.subr
+--- /etc.orig/rc.subr	2012-12-23 21:13:14.000000000 +0800
++++ /etc/rc.subr	2012-12-23 21:20:59.000000000 +0800
+@@ -156,6 +156,7 @@
  	esac
  	if [ "$autoboot" = yes -o "$always" = true ]; then
  		echo "ERROR: ABORTING BOOT (sending SIGTERM to parent)!"

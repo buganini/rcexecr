@@ -13,6 +13,9 @@ Test with modification on /etc:
 	cd /etc/
 	patch -p1 < /usr/src/sbin/rcexecr/etc.patch.txt
 
+	#enable parallel execution
+	echo rcexecr_parallel="YES" >> /etc/rc.conf
+
 	#reboot
 	shutdown -r now
 
